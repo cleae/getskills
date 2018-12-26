@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="/layui/jquery-3.3.1.min.js"></script>
+</head>
+<body>
+<div>who:<input type="text" id="from" value=""></div>
+
+<button id="pk">对战</button>
+<button id="exit">退出</button>
+<input type="text" id="answer" value="" placeholder="答案">
+<input type="button" id="btn" value="确定">
+<input type="button" id="result1" value="sendres1">
+<input type="button" id="result2" value="sendres2">
+<script>
+
+    var pk=document.getElementById("pk");
+    var exit=document.getElementById("exit");
+    var answer=document.getElementById("answer");
+    var btn=document.getElementById("btn");
+    var result1=document.getElementById("result1");
+    var result2=document.getElementById("result2");
+    var ws;
+    var rival;
+
+    result1.onclick=function(){
+        let  from=document.getElementById("from").value;
+        var res1=JSON.stringify({from:from,status:0,scoreNumber:0,type:1});
+        ws.send(res1);
+    };
+    result2.onclick=function(){
+        let  from=document.getElementById("from").value;
+        var res1=JSON.stringify({from:from,status:0,scoreNumber:0,type:1});
+        ws.send(res1);
+    };
+    // var res2=JSON.stringify({from:2i,status:4,scoreNumber:8});
+    // result1.onclick=function(){
+    //
+    //     let  from=document.getElementById("from").value;
+    //     var res1=JSON.stringify({from:from,status:4,scoreNumber:7});
+    //     // ws.send(JSON.stringify(res1));
+    //     let promise = new Promise(function(resolve, reject) {
+    //
+    //         resolve();
+    //     });
+    //     promise.then(function() {
+    //         $.ajax({
+    //             url:'/user/createHistory?from='+from+"&scoreNumber="+7,
+    //             type:'POST',
+    //             // contentType:'application/json',
+    //             // data:res1,
+    //             success:function(res){
+    //                 alert(res);
+    //             }
+    //         });
+    //
+    //     });
+    //
+    // };
+    // result2.onclick=function(){
+    //     let  from=document.getElementById("from").value;
+    //     var res1=JSON.stringify({from:from,status:4,scoreNumber:8});
+    //     // ws.send(JSON.stringify(res1));
+    //     let promise = new Promise(function(resolve, reject) {
+    //
+    //         resolve();
+    //     });
+    //     promise.then(function() {
+    //         $.ajax({
+    //             url:'/user/createHistory?from='+from+"&scoreNumber="+8,
+    //             type:'POST',
+    //             // contentType:'application/json',
+    //             // data:res1,
+    //             success:function(res){
+    //                 alert(res);
+    //             }
+    //         });
+    //
+    //     });
+    // };
+    btn.onclick=function(){
+      let  from=document.getElementById("from").value;
+      var cruent={from:from,humanAnswer:answer.value,status:10};
+      ws.send(JSON.stringify(cruent));
+    };
+    pk.onclick=function(){
+        let  from=document.getElementById("from").value;
+        ws = new WebSocket("ws://localhost:8080/socket");
+        console.log(from);
+        ws.onopen = function (event) {
+            // let msg = { from:from,type:1};
+            let msg = { from:from,type:"",status:1};
+            ws.send(JSON.stringify(msg));
+        };
+        ws.onmessage =function(e){
+
+            try{
+                console.log(JSON.parse(e.data));
+            }catch (Exception){
+
+            }finally {
+                console.log(e.data);
+            }
+            // if(e.data=="noPlayer"){console.log(e.data)}
+            // else{
+            //     console.log(JSON.parse(e.data));
+            //     rival=JSON.parse(JSON.parse(e.data).msg).name;
+            // }
+
+            // var temp=JSON.parse(e.data).questionsList;
+            // console.log(temp);
+            // console.log(typeof temp);
+            // var temp1=JSON.parse(temp);
+            // console.log(temp1);
+            // console.log(typeof temp1)
+
+        };
+        exit.onclick=function(){
+            let msg = {from:from,type:"",status:0};
+            ws.send(JSON.stringify(msg));
+            ws.close();
+        }
+
+    }
+
+
+</script>
+</body>
+</html>

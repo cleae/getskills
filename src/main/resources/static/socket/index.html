@@ -1,0 +1,108 @@
+<html>
+<head>
+    <style>
+        #messages {
+            text-align: left;
+            width: 50%;
+            padding: 1em;
+            border: 1px solid black;
+        }
+    </style>
+    <title>Sample WebSocket Client</title>
+
+
+</head>
+<body>
+<div class="container">
+    <div id="messages" class="messages"></div>
+    <div id="lt"></div>
+    <div class="input-fields">
+        <p>Type a message and hit send:</p>
+        <input id="message"/>
+        <button id="send">Send</button>
+
+        <p>Select an image and hit send:</p>
+        <input type="file" id="file" accept="image/*"/>
+
+        <button id="sendImage">Send Image</button>
+    </div>
+</div>
+</body>
+<script>
+    function getParameterByName(name, url) {
+        if (!url) url = window.location.href;
+        name = name.replace(/[\[\]]/g, '\\$&');
+        var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+            results = regex.exec(url);
+        if (!results) return null;
+        if (!results[2]) return '';
+        return decodeURIComponent(results[2].replace(/\+/g, ' '));
+    }
+    let from = getParameterByName("from");
+    let to  =  getParameterByName("to");
+    const messageWindow = document.getElementById("messages");
+    const lt = document.getElementById("lt");
+
+    const sendButton = document.getElementById("send");
+    const messageInput = document.getElementById("message");
+
+    const fileInput = document.getElementById("file");
+    const sendImageButton = document.getElementById("sendImage");
+    const socket = new WebSocket("ws://127.0.0.1:8080/socket");
+
+    //const socket = new WebSocket("wss://kf.csqiji.com/ws");
+    socket.binaryType = "arraybuffer";
+
+    socket.onopen = function (event) {
+        addMessageToWindow("Connected");
+        let msg = { from,to:0,type:1,body:""}
+        sendMessage(JSON.stringify(msg));
+    };
+
+
+    socket.onmessage = function (event) {
+        if (event.data instanceof ArrayBuffer) {
+            addMessageToWindow('Got Image:');
+            addImageToWindow(event.data);
+        } else {
+            let msg = JSON.parse(event.data);
+            console.log("",tc++);
+
+            //addMessageToWindow(`Got Message: ${msg.body}`);
+        }
+    };
+
+    let tc =1;
+
+    sendButton.onclick = function (event) {
+        let msg = { from, to,type:3,body:messageInput.value}
+        sendMessage(JSON.stringify(msg));
+        messageInput.value = "";
+    };
+
+    sendImageButton.onclick = function (event) {
+        let d = Date.now();
+        for(let i=0;i<10000;i++){
+            let msg = { from, to,type:3,body:"msg sddsfsadsaasdfasdfasdfadasdasdasddasdjkfasdkjasdfjasdkjaslfkdkkklklkldsfsadfsadsdasdddddasdas"+tc++}
+            sendMessage(JSON.stringify(msg));
+        }
+        lt.innerHTML = Date.now() - d;
+
+    }
+
+    function sendMessage(message) {
+        socket.send(message);
+        console.log("send");
+        //addMessageToWindow("Sent Message: " + Message);
+    }
+
+    function addMessageToWindow(message) {
+        messageWindow.innerHTML += `<div>${message}</div>`
+    }
+
+    function addImageToWindow(image) {
+        let url = URL.createObjectURL(new Blob([image]));
+        messageWindow.innerHTML += `<img src="${url}"/>`
+    }
+</script>
+</html>

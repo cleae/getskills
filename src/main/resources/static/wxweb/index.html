@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>wx web 测试</title>
+    <script src="http://res.wx.qq.com/open/js/jweixin-1.4.0.js"></script>
+    <script src="../layui/2.4.5/layui.all.js"></script>
+    <script type="text/javascript">
+        layui.use(['layer', 'form'], function(){
+            var $ = layui.$;
+            $.get('/mp/js/sig?url=https://mp.foxcodes.cn/wxweb/index.html',function(res){
+              alert(res);
+            });
+
+
+         });
+
+    </script>
+</head>
+<body>
+
+</body>
+</html>
