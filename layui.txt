@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>pdf.js</title>
+    <link rel="stylesheet" href="/layui/css/layui.css" media="all">
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="/layui/jquery-3.3.1.min.js"></script>
+    <style media="screen">
+        .comment_list {  padding-top:40px;width:700px;margin:0 auto;}
+        .comment_details { float:left;}
+        .comment_content {margin-top:10px;font-size:16px;    }
+        .comment_add_or_last {margin:0 auto;clear: both;	width:600px;height:40px;background: #F0F0F0;text-align: center;line-height: 40px;}
+        .imgdiv{float:left; }
+        .imgcss {	width:50px;height:50px;border-radius: 50%;}
+        .comment_name {margin-left:10px;color:#3D9EEA;font-size:15px;	font-weight: bolder;	}
+        .layui-icon {font-size: 10px; color: grey;cursor: pointer;	}
+        .del {margin-left: 55px;}
+    </style>
+</head>
+<div style="display:flex;justify-content: space-around">
+    <div style="width:50%;">
+        <button class="layui-btn" id="prev"data-type="onPrevPage">Previous</button>
+        <button class="layui-btn" id="next"data-type="onNextPage">Next</button>
+
+        &nbsp; &nbsp;
+        <input class="layui-input " style="width:200px;display: inline-block;"id="input" value="">
+        <button class="layui-btn" id="go"data-type="re_driect">go</button>
+        <span>Page: <span id="page_num"></span> / <span id="page_count"></span></span>
+        <canvas id="the-canvas"></canvas>
+        <button class="layui-btn" data-type="block">添加注释</button>
+        <div id="text"style="height:200px;width:600px ;display: none;">
+        <textarea class="layui-textarea" id="LAY_demo1" style="display: none;">
+          这是一条评论
+        </textarea>
+            <div class="site-demo-button" style="margin-top: 20px;">
+                <button class="layui-btn site-demo-layedit" data-type="content">评论</button>
+                <!-- <button class="layui-btn site-demo-layedit" data-type="text">获取编辑器纯文本内容</button> -->
+                <!-- <button class="layui-btn site-demo-layedit" data-type="selection">获取编辑器选中内容</button> -->
+            </div>
+        </div>
+    </div>
+    <!--layui评论模板-->
+    <div id="apps"style="width:700px;">
+        <!-- <h1>{{pdata}}</h1> -->
+        <div class="comment_list"id="app">
+            <blockquote class="layui-elem-quote layui-text">文章注释</blockquote>
+            <hr/>
+            <div class="comment"id="view">
+
+            </div>
+        </div>
+    </div>
+
+
+</div>
+
+
+
+<!--layui  templates-->
+<script id="demo" type="text/html">
+
+    <ul>
+        {{#  layui.each(d.list, function(index, item){ }}
+        <div class="comment">
+
+            <div class="imgdiv">
+
+                <img class="imgcss"  src="./images/user.jpg"/>
+            </div>
+            <div class="conmment_details">
+
+                <span class="comment_name">{{item.book}} &nbsp; &nbsp;</span><span>{{item.time}}</span>
+                <div class="comment_content" > &nbsp; &nbsp;{{item.zs}}</div>
+                <div class="del"> <i class="icon layui-icon"  >?赞(164)</i><a class="del_comment" data-id="tl"> <i class="icon layui-icon" >删除</i></a>
+                </div>
+
+
+            </div>
+            <hr />
+
+        </div>
+
+        {{#  }); }}
+        <!--{{#console.log(d.list+"sssss")}}-->
+        <!--{{#  if(d.list.length === 0){ }}-->
+        <!--无数据-->
+        <!--{{#  } }}-->
+    </ul>
+</script>
+
+<script src="/layui/layui.js"></script>
+<script src="../build/pdf.js"></script>
+<script src="../build/pdf.worker.js"></script>
+<script>
+    var url = './test.pdf';
+
+    var pdfDoc = null,
+        pageNum = 1,//当前页码
+        pageRendering = false,
+        pageName='test',
+        pageNumPending = null,
+        scale = 1.2,
+        canvas = document.getElementById('the-canvas'),
+        ctx = canvas.getContext('2d');
+    /**
+     * 渲染模板函数
+     */
+    layui.use('laytpl', function() {
+        var laytpl = layui.laytpl;
+         var temp1=JSON.stringify({pages:pageNum});
+        var render=function() {
+             $.ajax({
+                 url:"/login/pdf/select",
+                 type:"POST",
+                 contentType:"application/json",
+                 data:temp1,
+                 success:function(res){
+                     var lists=eval(res);
+                     var data={
+                         "list":lists
+                     };
+                     var getTpl = demo.innerHTML
+                         , view = document.getElementById('view');
+                     laytpl(getTpl).render(data, function (html) {
+                         console.log(data);
+                         view.innerHTML = html;
+                     });
+                 }
+
+             })
+
+        }
+
+        render();
+    });
+    /**
+     * Asynchronously downloads PDF.异步下载PDF
+     */
+    PDFJS.getDocument(url).then(function(pdfDoc_) {
+        pdfDoc = pdfDoc_;
+        document.getElementById('page_count').textContent = pdfDoc.numPages;
+
+        // Initial/first page rendering
+        renderPage(pageNum);
+    });
+    /**
+     * Get page info from document, resize canvas accordingly, and render page.
+     * @param num Page number.
+     */
+    function renderPage(num) {
+        pageRendering = true;
+        // Using promise to fetch the page
+        pdfDoc.getPage(num).then(function(page) {
+            var viewport = page.getViewport(scale);
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            // Render PDF page into canvas context
+            var renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            var renderTask = page.render(renderContext);
+
+            // Wait for rendering to finish
+            renderTask.promise.then(function() {
+                pageRendering = false;
+                if (pageNumPending !== null) {
+                    // New page rendering is pending
+                    renderPage(pageNumPending);
+                    pageNumPending = null;
+                }
+            });
+        });
+
+        // Update page counters
+        document.getElementById('page_num').textContent = num;
+    }
+
+    /**
+     * If another page rendering in progress, waits until the rendering is
+     * finised. Otherwise, executes rendering immediately.
+     */
+    function queueRenderPage(num) {
+        if (pageRendering) {
+            pageNumPending = num;
+        } else {
+            renderPage(num);
+        }
+    }
+
+    /**
+     * Displays previous page.上一页
+     */
+    function onPrevPage() {
+        if (pageNum <= 1) {
+            return;
+        }
+        pageNum--;
+
+        var pages={pages:pageNum};
+
+
+        pages=JSON.stringify(pages);
+        $.ajax({
+            url:'/login/pdf/select/next',
+            type:'POST',
+            contentType:'application/json',
+            data:pages,
+            success:function(res){
+                // $(".layui-laypage-btn").click();
+                // vm.pdf=res;
+                console.log(res);
+            }
+        });
+        queueRenderPage(pageNum);
+    }
+    document.getElementById('prev').addEventListener('click', onPrevPage);
+
+    /**
+     * Displays next page.下一页
+     */
+    function onNextPage() {
+        if (pageNum >= pdfDoc.numPages) {
+            return;
+        }
+        pageNum++;
+
+        // $.get("/login/pdf/select/next",pageNum,function(data1,status){
+        //     if(status=="success"){
+        //         vm.pdf=data1;
+        //     }
+        // });
+        // $.ajax({
+        //     url: "/login/pdf/select/next",
+        //     data: pageNum,
+        //     success:function(res){
+        //        console.log(res);
+        //     }
+
+        // });
+        var pages={pages:pageNum};
+
+
+        pages=JSON.stringify(pages);
+        $.ajax({
+            url:'/login/pdf/select/next',
+            type:'POST',
+            contentType:'application/json',
+            data:pages,
+            success:function(res){
+                // $(".layui-laypage-btn").click();
+                vm.pdf=res;
+                console.log(res);
+            }
+        });
+        queueRenderPage(pageNum);
+    }
+    document.getElementById('next').addEventListener('click', onNextPage);
+    /**
+     * 随机跳转
+     */
+    function re_driect (){
+        var num=document.getElementById("input").value;
+        num=parseInt(num);
+        if(num>=1&&num<=pdfDoc.numPages){
+           pageNum=num;
+           // num="";
+            $("input").val("");//清空
+            var pages={pages:pageNum};
+
+
+            pages=JSON.stringify(pages);
+            $.ajax({
+                url:'/login/pdf/select/next',
+                type:'POST',
+                contentType:'application/json',
+                data:pages,
+                success:function(res){
+                    // $(".layui-laypage-btn").click();
+                    vm.pdf=res;
+                    console.log(res);
+                }
+            });
+           queueRenderPage(pageNum);
+        }
+    }
+    document.getElementById('go').addEventListener('click',re_driect);
+    /**
+     * 整合layui
+     */
+var layer;//全局
+    var temp=document.getElementById('text')
+    layui.use(['layedit','layer'], function(){
+        var layedit = layui.layedit;
+            var layer = layui.layer;
+            var $ = layui.jquery;
+
+        //构建一个默认的编辑器
+        var index = layedit.build('LAY_demo1');
+
+        //编辑器外部操作
+        var active = {
+            content: function(){//添加
+                // alert(layedit.getContent(index)); //获取编辑器内容
+                var content=layedit.getContent(index);
+                content=content.trim();
+                var page_name=pageName;
+                var page_num=pageNum;
+                var date=new Date().toLocaleString();
+
+                var data1=JSON.stringify({"book":page_name,"pages":page_num,"zs":content,"time":date});
+                console.log(data1);
+                $.ajax({
+                    url:'/login/pdf/add',
+                    type:'POST',
+                    contentType:'application/json',
+                    data:data1,
+                    success:function(res){
+                        vm.pdf.push({"book":page_name,"pages":page_num,"zs":content,"time":date});
+                        console.log("ok");
+                        // window.location.reload();添加之后怎么刷新到页面
+                    }
+                });
+            }
+            //  ,text: function(){
+            //   alert(layedit.getText(index)); //获取编辑器纯文本内容
+            // }
+            // ,selection: function(){
+            //   alert(layedit.getSelection(index));
+            // }
+            ,block:function(){
+                var sty=temp.style.display;
+                if(sty==="block")
+                    temp.style.display="none";
+                else{
+                    temp.style.display="block"
+                }
+            }
+        };
+
+        $('.layui-btn').on('click', function(){
+            var type = $(this).data('type');
+            active[type] ? active[type].call(this) : '';
+        });
+
+    });
+
+    // var vm = new Vue({
+    //     el: '#app',
+    //     data: {
+    //         datamsgFormSon: null,
+    //         pdata:"vdvvdbevbd",
+    //         pdf:''
+    //     },
+    //     mounted:function(){
+    //         var that=this;
+    //         $.get("/login/pdf/select",function(data1,status){
+    //             if(status=="success"){
+    //                 console.log(data1);
+    //                 that.pdf=data1;
+    //             }
+    //         });
+    //
+    //     },
+    //     methods: {
+    //         show(data) {
+    //             // console.log('调用了父组件身上的 show 方法: --- ' + data)
+    //             console.log(data);
+    //             this.datamsgFormSon = data
+    //         },
+    //         del(index){
+    //             var id=++index;
+    //             var that=this;
+    //
+    //                         layer.open({
+    //                             type: 1
+    //                             ,offset: 'auto'
+    //                             ,title:"真的删除吗"
+    //                             ,area: ['450px', '300px']
+    //                             ,id: 'lin' //防止重复弹出
+    //                             ,shadeClose:true,
+    //                             btn:['确定','取消'],
+    //                             btnAlign: 'c',
+    //                             content:$('#dv')
+    //
+    //                             ,shade: 0 //不显示遮罩
+    //                             ,yes: function(){
+    //                                 var data1=JSON.stringify({"id":id});
+    //                                 $.ajax({
+    //                                     url:'/login/admin/del',
+    //                                     type:'POST',
+    //                                     contentType:'application/json',
+    //                                     data:data1,
+    //                                     success:function(res){
+    //                                        vm.pdf.splice(index,1);
+    //
+    //                                     }
+    //                                 });
+    //                                 layer.closeAll();
+    //                             }
+    //                         });
+    //
+    //             console.log("id为:"+index);
+    //         }
+    //     },
+    //
+    // });
+</script>
+
+</html>
